@@ -1,0 +1,207 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "monday-assistant",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b380d978-ff29-43da-8249-4a266734d55b",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [1424, 3584],
+      "webhookId": "{{WEBHOOK_ID}}"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst conversationId = body.conversationId || null;\nconst message = body.message || null;\nconst messages = body.messages || [];\n\nif (!message || message.trim() === '') {\n  return [{ json: { error: 'message_required', conversationId } }];\n}\n\nlet contextLines = 'None';\nif (messages && messages.length > 0) {\n  const last10 = messages.slice(-10);\n  contextLines = last10.map(m => `${m.role}: ${m.content}`).join('\\n');\n}\n\nreturn [{ json: { conversationId, message: message.trim(), contextLines } }];"
+      },
+      "id": "d7487583-d761-4f60-b8c5-a63e4f00489f",
+      "name": "Parse Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1648, 3584]
+    },
+    {
+      "parameters": {
+        "modelId": {"__rl": true, "value": "gpt-4o-mini", "mode": "list", "cachedResultName": "GPT-4O-MINI"},
+        "messages": {
+          "values": [
+            {"content": "You are Mark I, an elite AI business strategist and operations assistant for {{AGENCY_NAME}}, a digital marketing agency that manages multiple clients.\n\nYour personality:\n- Sharp, confident, and direct\n- You give real, actionable advice, not generic fluff\n- You think about upselling, growth, efficiency, and results\n- You reference real marketing concepts: LTV, ROAS, retention, funnel optimization\n- You are concise but thorough\n- You always end with a next action or recommendation\n\nYou help with:\n- Upselling strategies for digital marketing clients\n- Ad campaign strategy (Meta, Google, Adroll)\n- SEO and content strategy\n- Workflow and productivity optimization\n- Business growth and scaling\n- GHL (GoHighLevel) automation\n- Client retention and account management\n- General agency operations\n\nNever say you cannot help. Always give a real, strategic answer.", "role": "system"},
+            {"content": "=Previous conversation context:\n{{ $json.contextLines || 'None' }}\n\nCurrent question: {{ $json.message }}"}
+          ]
+        },
+        "options": {"maxTokens": 1000}
+      },
+      "id": "3242b7fd-e477-4fe8-beed-a48c0ad2a6c9",
+      "name": "GPT General Advice",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [3296, 3392],
+      "credentials": {"openAiApi": {"id": "{{OPENAI_CREDENTIAL_ID}}", "name": "OpenAi account"}}
+    },
+    {
+      "parameters": {
+        "jsCode": "let replyText = '';\ntry {\n  replyText = $json.message?.content ||\n              $json.output?.[0]?.content?.[0]?.text ||\n              $json.choices?.[0]?.message?.content ||\n              'Sorry, I could not generate a response.';\n} catch(e) {\n  replyText = 'Sorry, I could not generate a response.';\n}\nreturn [{ json: { reply: replyText.trim() } }];"
+      },
+      "id": "c0d46480-b071-4add-8ebd-ecad5267322a",
+      "name": "Extract Advice Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3648, 3392]
+    },
+    {
+      "parameters": {
+        "jsCode": "let replyText = '';\ntry {\n  replyText = $json.message?.content ||\n              $json.output?.[0]?.content?.[0]?.text ||\n              $json.choices?.[0]?.message?.content ||\n              'Sorry, I could not generate a response.';\n} catch(e) {\n  replyText = 'Sorry, I could not generate a response.';\n}\nreturn [{ json: { reply: replyText.trim() } }];"
+      },
+      "id": "2167bc9a-9958-48f3-a2e7-63ad65302b07",
+      "name": "Extract Monday Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4000, 3968]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1},
+          "conditions": [{"id": "cond-error", "leftValue": "={{ $json.error }}", "rightValue": "message_required", "operator": {"type": "string", "operation": "equals"}}],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9344cc29-160f-45dc-b935-530fe74936a5",
+      "name": "Check Parse Error1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1872, 3584]
+    },
+    {
+      "parameters": {"jsCode": "return [{ json: { reply: \"Hey! I'm Mark I, your assistant. Send me a message and I'll get to work!\" } }];"},
+      "id": "5f9a479d-cba5-4e1c-9cfb-e475c2eb5120",
+      "name": "Empty Message Reply1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3552, 3088]
+    },
+    {
+      "parameters": {
+        "modelId": {"__rl": true, "value": "gpt-4o-mini", "mode": "list", "cachedResultName": "GPT-4O-MINI"},
+        "messages": {
+          "values": [
+            {"content": "You are Mark I, an elite AI business strategist and operations assistant for {{AGENCY_NAME}}, a digital marketing agency.\n\nYour job is to:\n1. Classify the user's intent into ONE of these categories and return ONLY valid JSON, no markdown.\n\nIntents:\n- high_priority_today\n- count_projects\n- tasks_for_client (extract client name into 'client' field)\n- overdue_tasks\n- task_summary\n- general_advice\n\nReturn JSON like:\n{ \"intent\": \"general_advice\", \"client\": null }\nor\n{ \"intent\": \"tasks_for_client\", \"client\": \"{{CLIENT_NAME}}\" }\n\nIf unclear, use general_advice.", "role": "system"},
+            {"content": "=Current message: {{ $json.message }}\n\nPrevious context (if any):\n{{ $json.contextLines || 'None' }}"}
+          ]
+        },
+        "options": {}
+      },
+      "id": "8e90e13a-eb38-4b3c-b54b-ce81e97c2af6",
+      "name": "OpenAI Intent1",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [2096, 3872],
+      "credentials": {"openAiApi": {"id": "{{OPENAI_CREDENTIAL_ID}}", "name": "OpenAi account"}}
+    },
+    {
+      "parameters": {
+        "jsCode": "let text = '';\ntry {\n  text = $json.message?.content ||\n         $json.output?.[0]?.content?.[0]?.text ||\n         $json.choices?.[0]?.message?.content ||\n         '';\n} catch(e) { text = ''; }\n\ntext = text.replace(/```json/gi, '').replace(/```/g, '').trim();\n\nlet parsed = { intent: 'general_advice', client: null };\ntry {\n  parsed = JSON.parse(text);\n} catch(e) {\n  parsed = { intent: 'general_advice', client: null };\n}\n\nconst prevJson = $('Parse Body').first().json;\n\nreturn [{\n  json: {\n    intent: parsed.intent || 'general_advice',\n    client: parsed.client || null,\n    conversationId: prevJson.conversationId,\n    message: prevJson.message,\n    contextLines: prevJson.contextLines\n  }\n}];"
+      },
+      "id": "05f46fb1-9da8-4f01-b6ee-bbc3f952d7c2",
+      "name": "Parse Intent1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2448, 3872]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {"conditions": {"options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1}, "conditions": [{"leftValue": "={{ $json.intent }}", "rightValue": "high_priority_today", "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"}, "renameOutput": true, "outputKey": "high_priority_today"},
+            {"conditions": {"options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1}, "conditions": [{"leftValue": "={{ $json.intent }}", "rightValue": "count_projects", "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"}, "renameOutput": true, "outputKey": "count_projects"},
+            {"conditions": {"options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1}, "conditions": [{"leftValue": "={{ $json.intent }}", "rightValue": "tasks_for_client", "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"}, "renameOutput": true, "outputKey": "tasks_for_client"},
+            {"conditions": {"options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1}, "conditions": [{"leftValue": "={{ $json.intent }}", "rightValue": "overdue_tasks", "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"}, "renameOutput": true, "outputKey": "overdue_tasks"},
+            {"conditions": {"options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1}, "conditions": [{"leftValue": "={{ $json.intent }}", "rightValue": "task_summary", "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"}, "renameOutput": true, "outputKey": "task_summary"},
+            {"conditions": {"options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1}, "conditions": [{"leftValue": "={{ $json.intent }}", "rightValue": "general_advice", "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"}, "renameOutput": true, "outputKey": "general_advice"}
+          ]
+        },
+        "options": {"fallbackOutput": "extra"}
+      },
+      "id": "ffae31bb-c8b1-4dfe-a53d-12dfddcba019",
+      "name": "Switch by Intent1",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [2672, 3792]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.monday.com/v2",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "mondayComApi",
+        "sendHeaders": true,
+        "headerParameters": {"parameters": [{"name": "Content-Type", "value": "application/json"}, {"name": "API-Version", "value": "2023-10"}]},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"query\": \"query HighPriorityToday { boards(ids: [{{OPS_BOARD_ID}}]) { items_page(limit: 500) { items { id name group { title } column_values(ids: [\\\"project_prority\\\", \\\"project_timeline\\\", \\\"project_status\\\"]) { id text } } } } }\"\n}",
+        "options": {}
+      },
+      "id": "82a69da5-47e8-42f5-b603-70276145a4a7",
+      "name": "Monday: High Priority Today1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2896, 3568],
+      "credentials": {"mondayComApi": {"id": "{{MONDAY_CREDENTIAL_ID}}", "name": "Monday.com account"}}
+    },
+    {
+      "parameters": {"jsCode": "const today = new Date().toISOString().split('T')[0];\nconst items = $json.data?.boards?.[0]?.items_page?.items || [];\n\nconst filtered = items.filter(item => {\n  const priority = item.column_values.find(c => c.id === 'project_prority')?.text || '';\n  const timeline = item.column_values.find(c => c.id === 'project_timeline')?.text || '';\n  const status = item.column_values.find(c => c.id === 'project_status')?.text || '';\n  const isHighPriority = ['high', 'urgent', 'critical'].includes(priority.toLowerCase());\n  const notDone = status.toLowerCase() !== 'done';\n  let isActive = false;\n  if (timeline) {\n    const parts = timeline.split(' - ');\n    const endDate = parts[1] ? parts[1].trim() : parts[0].trim();\n    isActive = endDate >= today;\n  }\n  return isHighPriority && notDone && isActive;\n}).map(item => ({\n  name: item.name,\n  client: item.group?.title || '',\n  priority: item.column_values.find(c => c.id === 'project_prority')?.text || '',\n  status: item.column_values.find(c => c.id === 'project_status')?.text || '',\n  timeline: item.column_values.find(c => c.id === 'project_timeline')?.text || ''\n}));\n\nreturn [{ json: { intent: 'high_priority_today', data: filtered, message: $('Parse Intent1').first().json.message, contextLines: $('Parse Intent1').first().json.contextLines } }];"},
+      "id": "130049c1-5cba-4ad5-945d-f10404a55619",
+      "name": "Format: High Priority1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3120, 3568]
+    },
+    {
+      "parameters": {
+        "modelId": {"__rl": true, "value": "gpt-4o-mini", "mode": "list", "cachedResultName": "GPT-4O-MINI"},
+        "messages": {
+          "values": [
+            {"content": "You are Mark I, an elite AI business strategist and operations assistant for {{AGENCY_NAME}}, a digital marketing agency managing multiple clients.\n\nYour personality:\n- Sharp, confident, and direct\n- You give real, actionable insights, not generic summaries\n- You think about priorities, blockers, opportunities, and what to do NEXT\n- You reference the client names and task names specifically\n- You always end with a clear recommended next action\n- When tasks are stuck or overdue, you flag the risk and suggest how to unblock\n- When listing tasks, group them by client for clarity\n\nYou are NOT just summarizing data. You are acting as a strategic advisor who happens to have access to the project board. Give opinions. Recommend priorities. Spot risks.", "role": "system"},
+            {"content": "=User asked: {{ $json.message }}\n\nLive Monday.com data:\nIntent: {{ $json.intent }}\nData: {{ JSON.stringify($json.data || $json) }}\n\nPrevious context:\n{{ $json.contextLines || 'None' }}"}
+          ]
+        },
+        "options": {"maxTokens": 1000}
+      },
+      "id": "ed3a8541-1c6b-4920-8561-50d193c1dae1",
+      "name": "OpenAI Summarize1",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [3552, 3968],
+      "credentials": {"openAiApi": {"id": "{{OPENAI_CREDENTIAL_ID}}", "name": "OpenAi account"}}
+    },
+    {
+      "parameters": {"respondWith": "json", "responseBody": "={{ JSON.stringify({ reply: $json.reply }) }}", "options": {"responseCode": 200}},
+      "id": "f6c13a94-3f25-4531-8bcf-269498cc0d11",
+      "name": "Respond to Webhook1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [3952, 3408]
+    }
+  ],
+  "connections": {
+    "Webhook": {"main": [[{"node": "Parse Body", "type": "main", "index": 0}]]},
+    "Parse Body": {"main": [[{"node": "Check Parse Error1", "type": "main", "index": 0}]]},
+    "GPT General Advice": {"main": [[{"node": "Extract Advice Reply", "type": "main", "index": 0}]]},
+    "Extract Advice Reply": {"main": [[{"node": "Respond to Webhook1", "type": "main", "index": 0}]]},
+    "Extract Monday Reply": {"main": [[{"node": "Respond to Webhook1", "type": "main", "index": 0}]]},
+    "Check Parse Error1": {"main": [[{"node": "Empty Message Reply1", "type": "main", "index": 0}], [{"node": "OpenAI Intent1", "type": "main", "index": 0}]]},
+    "Empty Message Reply1": {"main": [[{"node": "Respond to Webhook1", "type": "main", "index": 0}]]},
+    "OpenAI Intent1": {"main": [[{"node": "Parse Intent1", "type": "main", "index": 0}]]},
+    "Parse Intent1": {"main": [[{"node": "Switch by Intent1", "type": "main", "index": 0}]]},
+    "Switch by Intent1": {"main": [[{"node": "Monday: High Priority Today1", "type": "main", "index": 0}]]},
+    "Monday: High Priority Today1": {"main": [[{"node": "Format: High Priority1", "type": "main", "index": 0}]]},
+    "Format: High Priority1": {"main": [[{"node": "OpenAI Summarize1", "type": "main", "index": 0}]]},
+    "OpenAI Summarize1": {"main": [[{"node": "Extract Monday Reply", "type": "main", "index": 0}]]}
+  },
+  "meta": {"templateCredsSetupCompleted": true}
+}

@@ -1,0 +1,27 @@
+{
+  "_note": "Reconstructed reference illustrating the confirmed real architecture's node types and data flow. NOT a literal export of the production workflow — see README provenance note.",
+  "lead_creation": {
+    "nodes": [
+      {"name": "Webhook: call started", "type": "n8n-nodes-base.webhook"},
+      {"name": "Normalize caller payload", "type": "n8n-nodes-base.code"},
+      {"name": "CRM: upsert lead by phone", "type": "n8n-nodes-base.httpRequest"},
+      {"name": "Respond to webhook", "type": "n8n-nodes-base.respondToWebhook"}
+    ]
+  },
+  "end_of_call_report": {
+    "nodes": [
+      {"name": "Webhook: call ended", "type": "n8n-nodes-base.webhook"},
+      {"name": "Normalize call outcome/summary/recording ref", "type": "n8n-nodes-base.code"},
+      {"name": "CRM: append call report by session ID", "type": "n8n-nodes-base.httpRequest"},
+      {"name": "Respond to webhook", "type": "n8n-nodes-base.respondToWebhook"}
+    ]
+  },
+  "outbound_dynamic_variable_call": {
+    "nodes": [
+      {"name": "Trigger: outbound call requested", "type": "n8n-nodes-base.webhook"},
+      {"name": "CRM: fetch recipient fields", "type": "n8n-nodes-base.httpRequest"},
+      {"name": "Build dynamic_variables payload", "type": "n8n-nodes-base.code"},
+      {"name": "Voice platform: create call", "type": "n8n-nodes-base.httpRequest"}
+    ]
+  }
+}

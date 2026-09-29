@@ -1,0 +1,11 @@
+{
+  "_note": "Reconstructed reference illustrating the confirmed real architecture's node types and data flow. NOT a literal export of the production workflow — see README provenance note.",
+  "nodes": [
+    {"name": "Trigger: schedule or topic queue", "type": "n8n-nodes-base.scheduleTrigger"},
+    {"name": "LLM: draft post from topic", "type": "@n8n/n8n-nodes-langchain.openAi"},
+    {"name": "Post draft for human review", "type": "n8n-nodes-base.slack"},
+    {"name": "Wait for approval signal", "type": "n8n-nodes-base.webhook"},
+    {"name": "If approved", "type": "n8n-nodes-base.if"},
+    {"name": "CMS: publish post", "type": "n8n-nodes-base.httpRequest"}
+  ]
+}
